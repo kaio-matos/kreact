@@ -1,3 +1,6 @@
 import { AppBuilder } from "./app-builder";
+import type { Component } from "./component.interface";
 
-const app = new AppBuilder("app").build();
+const Root: Component = () => {};
+
+const app = new AppBuilder("app").setRootComponent(Root).build();
