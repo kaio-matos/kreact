@@ -1,17 +1,17 @@
 import { App } from "./app";
-import type { Component } from "./component.interface";
+import type { KComponent } from "./component.interface";
 
 export class AppBuilder {
   id: string;
   root: HTMLElement | null;
-  rootComponent?: Component;
+  rootComponent?: KComponent;
 
   constructor(id: string) {
     this.id = id;
     this.root = document.getElementById(id);
   }
 
-  setRootComponent(rootComponent: Component) {
+  setRootComponent(rootComponent: KComponent) {
     this.rootComponent = rootComponent;
     return this;
   }
