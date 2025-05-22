@@ -1,17 +1,13 @@
+import { GlobalApp } from "./app";
 import type { KComponent } from "./component.interface";
+
+export let CurrentResolvingComponent: KVirtualNodeComponent | null = null;
 
 export type KNode = HTMLElement;
 
 type KeyOfTagNamesMap = keyof HTMLElementTagNameMap;
 
 export class KVirtualNode {
-  children: KVirtualNode[] = [];
-
-  appendChild(node: KVirtualNode) {
-    this.children.push(node);
-    return this;
-  }
-
   isTagged(): this is KVirtualNodeTagged<any> {
     if (this instanceof KVirtualNodeTagged) {
       return true;
@@ -26,14 +22,14 @@ export class KVirtualNode {
     return false;
   }
 
-  traverse(): KVirtualNodeTagged<any> {
+  resolve(force = false): KVirtualNodeTagged<any> {
     if (this.isTagged()) {
       return this;
     }
 
     if (this.isComponent()) {
-      const resolved = this.resolver();
-      return resolved.traverse();
+      const resolved = this.resolver(force);
+      return resolved.resolve(force);
     }
 
     throw new Error("Unhandled instance of KVirtualNode");
@@ -41,28 +37,67 @@ export class KVirtualNode {
 }
 
 export class KVirtualNodeComponent extends KVirtualNode {
-  children: KVirtualNode[];
-  resolver: () => KVirtualNode;
+  // debugging reasons
+  readonly name: string;
+  readonly component: KComponent;
+  // ---
+  private result: KVirtualNode | undefined;
+  private _resolver: () => KVirtualNode;
+  states: Array<[any, (state: any) => void]> = [];
+  stateId = -1;
+  isDirty = true;
 
-  private constructor(resolver: () => KVirtualNode) {
+  private constructor(resolver: () => KVirtualNode, component: KComponent) {
     super();
-    this.children = [];
-    this.resolver = resolver;
+    this.name = component.name;
+    this.component = component;
+    this._resolver = resolver;
   }
 
   static create<P, C extends KComponent<P>>(component: C, props: P) {
-    return new KVirtualNodeComponent(() => component(props));
+    return new KVirtualNodeComponent(
+      () => component(props),
+      component as unknown as KComponent,
+    );
   }
 
-  appendChild(node: KVirtualNode) {
-    this.children.push(node);
-    return this;
+  resolver(force = false) {
+    if (force) {
+      CurrentResolvingComponent = this;
+      this.result = this._resolver();
+    } else if (!this.result) {
+      CurrentResolvingComponent = this;
+      this.result = this._resolver();
+    } else if (this.isDirty) {
+      CurrentResolvingComponent = this;
+      this.result = this._resolver();
+    }
+    return this.result;
+  }
+
+  useState<S>(initial: S) {
+    type Return = [S, typeof setState];
+
+    if (this.states[this.stateId]) return this.states[this.stateId] as Return;
+
+    this.stateId++;
+
+    const setState = (state: S) => {
+      this.isDirty = true;
+      this.states[this.stateId][0] = state;
+      GlobalApp?.render();
+    };
+
+    this.states[this.stateId] = [initial, setState];
+
+    return this.states[this.stateId] as Return;
   }
 }
 
 export class KVirtualNodeTagged<
   K extends KeyOfTagNamesMap,
 > extends KVirtualNode {
+  children: KVirtualNode[] = [];
   tag: K;
   element: HTMLElement;
 
@@ -75,6 +110,11 @@ export class KVirtualNodeTagged<
 
   static create<K extends KeyOfTagNamesMap>(tag: K) {
     return new KVirtualNodeTagged(tag);
+  }
+
+  appendChild(node: KVirtualNode) {
+    this.children.push(node);
+    return this;
   }
 
   innerHTML(html: string) {
@@ -93,11 +133,6 @@ export class KVirtualNodeTagged<
     for (const key in attributes) {
       this.element.setAttribute(key, attributes[key]);
     }
-    return this;
-  }
-
-  appendChild(node: KVirtualNode) {
-    this.children.push(node);
     return this;
   }
 }
