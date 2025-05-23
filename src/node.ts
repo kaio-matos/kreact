@@ -69,6 +69,9 @@ export class KVirtualNodeComponent extends KVirtualNode {
       CurrentResolvingComponent = this;
       this.result = this._resolver();
     } else if (this.isDirty) {
+      if (this.name === "Button" && this.result.isTagged()) {
+        // console.log(this.result.element.events);
+      }
       CurrentResolvingComponent = this;
       this.result = this._resolver();
     }
@@ -83,6 +86,10 @@ export class KVirtualNodeComponent extends KVirtualNode {
     this.stateId++;
 
     const setState = (state: S) => {
+      // if (this.states[this.stateId][0] === state) {
+      //   return;
+      // }
+      console.log(`${this.name}.setState(${state})`);
       this.isDirty = true;
       this.states[this.stateId][0] = state;
       GlobalApp?.render();

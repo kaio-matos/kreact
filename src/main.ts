@@ -9,19 +9,20 @@ const Deep2: KComponent = () => KVirtualNodeComponent.create(Deep3, undefined);
 const Deep1: KComponent = () => KVirtualNodeComponent.create(Deep2, undefined);
 
 const Button: KComponent<{ text: string; onClick: () => void }> = (props) => {
-  // const [isFocused, setIsFocused] = useState(false);
-  // const attributes = {
-  //   style: `background-color: ${isFocused ? "#B2CD9C" : "#F0F2BD"}`,
-  // };
+  const [isFocused, setIsFocused] = useState(false);
+  const attributes = {
+    style: `background-color: ${isFocused ? "#B2CD9C" : "#F0F2BD"}`,
+  };
 
-  return (
-    KVirtualNodeTagged.create("button")
-      // .addEventListener("focus", () => setIsFocused(true))
-      // .addEventListener("blur", () => setIsFocused(false))
-      .addEventListener("click", () => props.onClick())
-      // .attributes(attributes)
-      .innerHTML(props.text)
-  );
+  return KVirtualNodeTagged.create("button")
+    .addEventListener("focus", () => setIsFocused(true))
+    .addEventListener("blur", () => setIsFocused(false))
+    .addEventListener("click", () => {
+      console.log("Click");
+      props.onClick();
+    })
+    .attributes(attributes)
+    .innerHTML(props.text);
 };
 
 const Panel: KComponent = () => {

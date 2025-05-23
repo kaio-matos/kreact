@@ -1,30 +1,39 @@
 import type { KComponent } from "./component.interface";
+import { debounce } from "./debounce";
 import { KVirtualNode, KVirtualNodeComponent } from "./node";
 
 export let GlobalApp: App | null = null;
 
+const BATCH_TIMEOUT = 10;
+
 export class App {
   private root: HTMLElement;
   private VirtualRoot: KVirtualNodeComponent;
+  render: () => void;
 
   private AppRoot?: HTMLElement;
 
   constructor(root: HTMLElement, rootComponent: KComponent) {
     this.root = root;
     this.VirtualRoot = KVirtualNodeComponent.create(rootComponent, undefined);
+
+    this.render = debounce(
+      function (this: App) {
+        this.AppRoot = this.updateDOM(
+          this.AppRoot,
+          this.VirtualRoot,
+        ) as HTMLElement;
+
+        if (!this.root.children.length && this.AppRoot) {
+          this.root.appendChild(this.AppRoot);
+        }
+      }.bind(this),
+      BATCH_TIMEOUT,
+    );
+
     this.render();
+
     GlobalApp = this;
-  }
-
-  render() {
-    this.AppRoot = this.updateDOM(
-      this.AppRoot,
-      this.VirtualRoot,
-    ) as HTMLElement;
-
-    if (!this.root.children.length && this.AppRoot) {
-      this.root.appendChild(this.AppRoot);
-    }
   }
 
   private updateDOM(
@@ -43,7 +52,6 @@ export class App {
     if (VirtualRoot.isComponent()) {
       if (VirtualRoot.isDirty) {
         wasDirty = true;
-        console.log(CurrentRoot, VirtualRoot);
         CurrentRoot.replaceWith(ResolvedVirtualRoot.element);
         // the replaceWith method doesn't mutate the CurrentRoot variable
         // so we need to manually update it to the new element
