@@ -9,17 +9,27 @@ const Deep2: KComponent = () => KVirtualNodeComponent.create(Deep3, undefined);
 const Deep1: KComponent = () => KVirtualNodeComponent.create(Deep2, undefined);
 
 const Button: KComponent<{ text: string; onClick: () => void }> = (props) => {
-  // const [isFocused, setIsFocused] = useState(false);
-  // const attributes = {
-  //   style: `background-color: ${isFocused ? "#B2CD9C" : "#F0F2BD"}`,
-  // };
+  const [isFocused, setIsFocused] = useState(false);
+  const attributes = {
+    style: `background-color: ${isFocused ? "#B2CD9C" : "#F0F2BD"}`,
+  };
+  console.log({ isFocused });
 
   return (
     KVirtualNodeTagged.create("button")
-      // .addEventListener("focus", () => setIsFocused(true))
-      // .addEventListener("blur", () => setIsFocused(false))
-      .addEventListener("click", () => props.onClick())
-      // .attributes(attributes)
+      .addEventListener("click", () => {
+        console.log("Click");
+        props.onClick();
+      })
+      // .addEventListener("focus", () => {
+      //   console.log("Focusing");
+      //   setIsFocused(true);
+      // })
+      // .addEventListener("blur", () => {
+      //   console.log("Blurring");
+      //   setIsFocused(false);
+      // })
+      .attributes(attributes)
       .innerHTML(props.text)
   );
 };
@@ -34,15 +44,15 @@ const Panel: KComponent = () => {
     .appendChild(
       KVirtualNodeComponent.create(Button, {
         text: `Increase ${counter}`,
-        onClick: () => setCounter(counter + 1),
-      }),
-    )
-    .appendChild(
-      KVirtualNodeComponent.create(Button, {
-        text: `Decrease ${counter}`,
-        onClick: () => setCounter(counter - 1),
+        onClick: () => setCounter((counter) => counter + 1),
       }),
     );
+  // .appendChild(
+  //   KVirtualNodeComponent.create(Button, {
+  //     text: `Decrease ${counter}`,
+  //     onClick: () => setCounter(counter - 1),
+  //   }),
+  // );
 };
 
 const App: KComponent = () => {
@@ -56,18 +66,18 @@ const App: KComponent = () => {
             style: "background-color: #4B352A; color: #F0F2BD; padding: 2rem",
           })
           .innerHTML(`Div: ${counter}`)
-          .appendChild(
-            KVirtualNodeComponent.create(Button, {
-              text: "Click here",
-              onClick: () => setCounter(counter + 1),
-            }),
-          )
-          .appendChild(
-            KVirtualNodeComponent.create(Button, {
-              text: "Click here",
-              onClick: () => setCounter(counter + 1),
-            }),
-          )
+          // .appendChild(
+          //   KVirtualNodeComponent.create(Button, {
+          //     text: "Click here",
+          //     onClick: () => setCounter(counter + 1),
+          //   }),
+          // )
+          // .appendChild(
+          //   KVirtualNodeComponent.create(Button, {
+          //     text: "Click here",
+          //     onClick: () => setCounter(counter + 1),
+          //   }),
+          // )
           .appendChild(KVirtualNodeComponent.create(Deep1, undefined)),
       )
       .appendChild(KVirtualNodeComponent.create(Panel, undefined));

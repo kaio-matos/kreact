@@ -1,7 +1,11 @@
 import { GlobalApp } from "./app";
 import type { KComponent } from "./component.interface";
+import { EventsHandler } from "./event";
 
 export let CurrentResolvingComponent: KVirtualNodeComponent | null = null;
+export function clearCurrentResolvingComponent() {
+  CurrentResolvingComponent = null;
+}
 
 export type KNode = HTMLElement;
 
@@ -43,15 +47,19 @@ export class KVirtualNodeComponent extends KVirtualNode {
   // ---
   private result: KVirtualNode | undefined;
   private _resolver: () => KVirtualNode;
+
+  eventsHandler: EventsHandler<any, any>;
   states: Array<[any, (state: any) => void]> = [];
   stateId = -1;
   isDirty = true;
+  isRendering = false;
 
   private constructor(resolver: () => KVirtualNode, component: KComponent) {
     super();
     this.name = component.name;
     this.component = component;
     this._resolver = resolver;
+    this.eventsHandler = new EventsHandler();
   }
 
   static create<P, C extends KComponent<P>>(component: C, props: P) {
@@ -61,16 +69,18 @@ export class KVirtualNodeComponent extends KVirtualNode {
     );
   }
 
+  getCurrentNode() {
+    return this.result;
+  }
+
   resolver(force = false) {
-    if (force) {
+    if (force || !this.result || this.isDirty) {
       CurrentResolvingComponent = this;
+      this.eventsHandler.destroy();
       this.result = this._resolver();
-    } else if (!this.result) {
-      CurrentResolvingComponent = this;
-      this.result = this._resolver();
-    } else if (this.isDirty) {
-      CurrentResolvingComponent = this;
-      this.result = this._resolver();
+      if (this.result.isTagged()) {
+        this.assignFatherhood([this.result]);
+      }
     }
     return this.result;
   }
@@ -82,15 +92,35 @@ export class KVirtualNodeComponent extends KVirtualNode {
 
     this.stateId++;
 
-    const setState = (state: S) => {
-      this.isDirty = true;
-      this.states[this.stateId][0] = state;
-      GlobalApp?.render();
+    const setState = (state: S | ((current: S) => S)) => {
+      if (this.states[this.stateId][0] === state) {
+        return;
+      }
+      console.log(`${this.name}.setState(${state})`);
+      const self = this;
+
+      GlobalApp?.scheduleUpdate(() => {
+        self.isDirty = true;
+        self.states[self.stateId][0] =
+          typeof state === "function"
+            ? (state as any)(self.states[self.stateId][0])
+            : state;
+      });
     };
 
     this.states[this.stateId] = [initial, setState];
 
     return this.states[this.stateId] as Return;
+  }
+
+  assignFatherhood(children: KVirtualNode[]) {
+    children.forEach((child) => {
+      if (child.isTagged()) {
+        child.parent = this;
+
+        this.assignFatherhood(child.children);
+      }
+    });
   }
 }
 
@@ -100,6 +130,7 @@ export class KVirtualNodeTagged<
   children: KVirtualNode[] = [];
   tag: K;
   element: HTMLElement;
+  parent?: KVirtualNodeComponent;
 
   private constructor(tag: K) {
     super();
@@ -112,6 +143,23 @@ export class KVirtualNodeTagged<
     return new KVirtualNodeTagged(tag);
   }
 
+  addEventListener(
+    type: Parameters<HTMLElementTagNameMap[K]["addEventListener"]>[0],
+    listener: Parameters<HTMLElementTagNameMap[K]["addEventListener"]>[1],
+  ) {
+    CurrentResolvingComponent!.eventsHandler.addEventListener(
+      this.element,
+      type,
+      listener,
+    );
+    return this;
+  }
+
+  fireEvent(type: string, event: Event) {
+    // at this time CurrentResolvingComponent is null
+    this.parent!.eventsHandler.fireEvent(this.element, type, event);
+  }
+
   appendChild(node: KVirtualNode) {
     this.children.push(node);
     return this;
@@ -119,13 +167,6 @@ export class KVirtualNodeTagged<
 
   innerHTML(html: string) {
     this.element.innerHTML = html;
-    return this;
-  }
-
-  addEventListener(
-    ...args: Parameters<HTMLElementTagNameMap[K]["addEventListener"]>
-  ) {
-    this.element.addEventListener(args[0], args[1], args[2]);
     return this;
   }
 

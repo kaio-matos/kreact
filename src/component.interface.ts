@@ -1,3 +1,3 @@
-import type { IKVirtualNode } from "./node";
+import type { KVirtualNode } from "./node";
 
-export type KComponent<P = undefined> = (props: P) => IKVirtualNode;
+export type KComponent<P = undefined> = (props: P) => KVirtualNode;
